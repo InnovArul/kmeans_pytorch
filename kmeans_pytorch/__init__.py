@@ -83,10 +83,18 @@ def kmeans(
         initial_state_pre = initial_state.clone()
 
         current_active_clusters = 0
+        least_count = 999999
+        most_count = 0
         for index in range(num_clusters):
-            selected = torch.nonzero(choice_cluster == index).squeeze().to(device)
-            selected = torch.index_select(X, 0, selected)
+            selected_indices = torch.nonzero(choice_cluster == index).squeeze(dim=-1).to(device)
+            selected = torch.index_select(X, 0, selected_indices)
+
+            #if selected.shape[0]!=0:
             if torch.isnan(selected.mean(dim=0)).sum()==0:
+                current_count = selected_indices.shape[0]
+                least_count = min(least_count, current_count)
+                most_count = max(most_count, current_count)
+
                 initial_state[index] = selected.mean(dim=0)
                 current_active_clusters += 1
 
@@ -104,6 +112,8 @@ def kmeans(
                 iteration=f'{iteration}',
                 center_shift=f'{center_shift ** 2:0.6f}',
                 active_clusters=f'{current_active_clusters}',
+                least_count=f'{least_count}',
+                most_count=f'{most_count}',
                 tol=f'{tol:0.6f}'
             )
             tqdm_meter.update()
