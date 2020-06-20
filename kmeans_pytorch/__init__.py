@@ -61,28 +61,34 @@ def kmeans(
         print('resuming')
         # find data point closest to the initial cluster center
         initial_state = cluster_centers
+        assert not torch.isnan(cluster_centers).any(), "cluster centers nan"
+
         dis = pairwise_distance_function(X, initial_state)
+        assert not torch.isnan(dis).any(), "dis nan"
+
         choice_points = torch.argmin(dis, dim=0)
         initial_state = X[choice_points]
         initial_state = initial_state.to(device)
-        
+        assert not torch.isnan(initial_state).any(), "initial_state nan"
+
     iteration = 0
     if tqdm_flag:
         tqdm_meter = tqdm(desc='[running kmeans]')
+
     while True:
-        
         dis = pairwise_distance_function(X, initial_state)
+        assert not torch.isnan(dis).any(), "loop dis nan"
 
         choice_cluster = torch.argmin(dis, dim=1)
-
         initial_state_pre = initial_state.clone()
 
+        current_active_clusters = 0
         for index in range(num_clusters):
             selected = torch.nonzero(choice_cluster == index).squeeze().to(device)
-
             selected = torch.index_select(X, 0, selected)
-
-            initial_state[index] = selected.mean(dim=0)
+            if torch.isnan(selected.mean(dim=0)).sum()==0:
+                initial_state[index] = selected.mean(dim=0)
+                current_active_clusters += 1
 
         center_shift = torch.sum(
             torch.sqrt(
@@ -97,6 +103,7 @@ def kmeans(
             tqdm_meter.set_postfix(
                 iteration=f'{iteration}',
                 center_shift=f'{center_shift ** 2:0.6f}',
+                active_clusters=f'{current_active_clusters}',
                 tol=f'{tol:0.6f}'
             )
             tqdm_meter.update()
@@ -146,16 +153,24 @@ def kmeans_predict(
 def pairwise_distance(data1, data2, device=torch.device('cpu')):
     # transfer to device
     data1, data2 = data1.to(device), data2.to(device)
+    assert not torch.isnan(data1).any(), "pairwise_distance data1 nan"
+    assert not torch.isnan(data2).any(), "pairwise_distance data2 nan"
 
     # N*1*M
     A = data1.unsqueeze(dim=1)
+    assert not torch.isnan(A).any(), "pairwise_distance A nan"
 
     # 1*N*M
     B = data2.unsqueeze(dim=0)
+    assert not torch.isnan(B).any(), "pairwise_distance B nan"
 
     dis = (A - B) ** 2.0
+    assert not torch.isnan(dis).any(), "pairwise_distance sqr dist nan"
+
     # return N*N matrix for pairwise distance
     dis = dis.sum(dim=-1).squeeze()
+    assert not torch.isnan(dis).any(), "pairwise_distance dis squeeze nan"
+
     return dis
 
 
